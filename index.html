@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Qarz va to'lov</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-secondary-bg-color, #f1f2f6);
+    --card: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #ffffff));
+    --text: var(--tg-theme-text-color, #15171c);
+    --hint: var(--tg-theme-hint-color, #8a8f98);
+    --accent: var(--tg-theme-button-color, #2f80ed);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+    --head: var(--tg-theme-section-header-text-color, var(--tg-theme-hint-color, #6d7380));
+    --line: color-mix(in srgb, var(--hint) 22%, transparent);
+    --red: #e5484d;
+    --green: #2b9a66;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 12px 12px calc(84px + env(safe-area-inset-bottom)); }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .hint { color: var(--hint); font-size: 13px; }
+  .red { color: var(--red); } .green { color: var(--green); }
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--head); margin: 18px 4px 8px; }
+  .card { background: var(--card); border-radius: var(--radius); overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .grow { flex: 1; min-width: 0; }
+  .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Jami qarz */
+  .hero { padding: 16px; }
+  .hero .label { color: var(--hint); font-size: 13px; }
+  .hero .big { font-size: 28px; font-weight: 700; margin-top: 2px; }
+  .hero .sub { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--hint); }
+
+  /* Qidiruv */
+  .search { margin: 12px 0 0; }
+  input, select, textarea { width: 100%; font: inherit; color: var(--text); background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; outline: none; }
+  input:focus, textarea:focus { border-color: var(--accent); }
+
+  /* Klient ro'yxati */
+  .klient { cursor: pointer; }
+  .klient:active { background: var(--line); }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; flex: none;
+    background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 700; }
+  .qarz { font-weight: 600; text-align: right; }
+  .chev { color: var(--hint); font-size: 18px; }
+
+  /* Hisobot */
+  .title { display: flex; align-items: center; gap: 10px; margin: 2px 4px 10px; }
+  .title .name { font-size: 20px; font-weight: 700; }
+  .months { display: flex; align-items: center; justify-content: space-between; background: var(--card);
+    border-radius: var(--radius); padding: 6px; }
+  .months button { border: 0; background: none; color: var(--accent); font: inherit; padding: 8px 12px; border-radius: 10px; }
+  .months button:disabled { color: var(--hint); opacity: .4; }
+  .months .cur { font-weight: 600; text-transform: capitalize; }
+  .sum .row { padding: 10px 14px; }
+  .sum .total { font-weight: 700; font-size: 17px; background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .zakaz summary { list-style: none; cursor: pointer; }
+  .zakaz summary::-webkit-details-marker { display: none; }
+  .zakaz[open] .tog { transform: rotate(90deg); }
+  .tog { transition: transform .15s; color: var(--hint); }
+  .badge { font-size: 12px; color: var(--hint); background: var(--bg); border-radius: 6px; padding: 1px 6px; }
+  .items { border-top: 1px solid var(--line); padding: 4px 14px 10px; }
+  .item { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 0; }
+  .item + .item { border-top: 1px dashed var(--line); }
+  .item .calc { color: var(--hint); font-size: 13px; }
+  .item .s { font-weight: 600; align-self: end; }
+  .empty { padding: 16px; text-align: center; color: var(--hint); }
+
+  /* Forma */
+  label.f { display: block; margin: 14px 4px 6px; font-size: 13px; color: var(--head); }
+  .seg { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .seg button { border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit;
+    padding: 11px 8px; border-radius: 12px; }
+  .seg button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: var(--accent); font-weight: 600; }
+  .preview { margin-top: 14px; }
+  .btn { width: 100%; margin-top: 16px; border: 0; border-radius: 12px; padding: 14px; font: inherit; font-weight: 600;
+    background: var(--accent); color: var(--accent-text); }
+  .btn.sec { background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: var(--accent); }
+  .btn:disabled { opacity: .5; }
+  .sugg { margin-top: 6px; }
+
+  /* Pastki menyu */
+  nav { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr;
+    background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  nav button { border: 0; background: none; font: inherit; font-size: 12px; color: var(--hint); padding: 8px 0 10px; }
+  nav button .ic { display: block; font-size: 22px; line-height: 1.2; }
+  nav button.on { color: var(--accent); font-weight: 600; }
+
+  .msg { padding: 28px 16px; text-align: center; color: var(--hint); }
+  .spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: sp .8s linear infinite; margin: 0 auto 10px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: var(--text); color: var(--card); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: 90%;
+    opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.on { opacity: .95; }
+</style>
+</head>
+<body>
+<div id="app"><div class="msg"><div class="spin"></div>Yuklanmoqda…</div></div>
+<nav id="nav" hidden>
+  <button data-tab="qarz" class="on"><span class="ic">📊</span>Qarzdorlar</button>
+  <button data-tab="tolov"><span class="ic">💰</span>To'lov kiritish</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+// Apps Script web app — Telegram imzosini tekshirib, jadvaldan o'qiydi va yozadi
+const API = 'https://script.google.com/macros/s/AKfycbxHi6vbgOfT6WnKAQiSEOmvxW5PChd6oftC3ljaNsy5Kp7veGAFglct0DTLJRigoZymMA/exec';
+const tg = window.Telegram && Telegram.WebApp;
+const app = document.getElementById('app');
+const S = { tab: 'qarz', klientlar: [], jami: 0, usullar: [], bugun: '', qidiruv: '', h: null, forma: {} };
+
+if (tg) { tg.ready(); tg.expand(); }
+
+const som = n => (n < 0 ? '−' : '') + Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const rang = n => n > 0 ? 'red' : n < 0 ? 'green' : '';
+const harf = s => esc((String(s).trim()[0] || '?').toUpperCase());
+
+function toast(t) {
+  const el = document.getElementById('toast');
+  el.textContent = t; el.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600);
+}
+
+async function api(act, data) {
+  // text/plain — CORS preflight bo'lmasin (Apps Script OPTIONS ga javob bermaydi)
+  const r = await fetch(API, { method: 'POST', body: JSON.stringify({ initData: tg ? tg.initData : '', act, ...data }) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.xato || 'Xato');
+  return j;
+}
+
+function xato(e) {
+  app.innerHTML = `<div class="msg">⚠️ ${esc(e.message || e)}<br><br><button class="btn sec" onclick="boshla()">Qayta urinish</button></div>`;
+}
+
+async function boshla() {
+  if (!tg || !tg.initData) {
+    app.innerHTML = '<div class="msg">Bu ilova Telegram ichida, bot menyusidagi <b>Ilova</b> tugmasi orqali ochiladi.</div>';
+    return;
+  }
+  app.innerHTML = '<div class="msg"><div class="spin"></div>Yuklanmoqda…</div>';
+  try {
+    const j = await api('klientlar');
+    Object.assign(S, { klientlar: j.klientlar, jami: j.jami, usullar: j.usullar, bugun: j.bugun });
+    document.getElementById('nav').hidden = false;
+    korsat();
+  } catch (e) { xato(e); }
+}
+
+function tabga(t) {
+  S.tab = t; S.h = null;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  korsat();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => tabga(b.dataset.tab));
+
+function korsat() {
+  if (tg) { tg.BackButton[S.h ? 'show' : 'hide'](); }
+  if (S.tab === 'tolov') return forma();
+  if (S.h) return hisobotKorsat();
+  royxat();
+}
+
+/* ---------- Qarzdorlar ---------- */
+function royxat() {
+  const q = S.qidiruv.toLowerCase();
+  const kl = S.klientlar.filter(k => !q || k.klient.toLowerCase().includes(q));
+  const qarzdor = S.klientlar.filter(k => k.qarz > 0).length;
+  app.innerHTML = `
+    <div class="card hero">
+      <div class="label">Jami qarz</div>
+      <div class="big num ${rang(S.jami)}">${som(S.jami)} <span class="hint">so'm</span></div>
+      <div class="sub"><span>${S.klientlar.length} ta klient</span><span>${qarzdor} ta qarzdor</span></div>
+    </div>
+    <div class="search"><input id="q" type="search" placeholder="🔎 Klient qidirish" value="${esc(S.qidiruv)}"></div>
+    <h2>Klientlar</h2>
+    <div class="card">${kl.length ? kl.map(k => `
+      <div class="row klient" data-k="${esc(k.klient)}">
+        <div class="avatar">${harf(k.klient)}</div>
+        <div class="grow"><div class="ell">${esc(k.klient)}</div>
+          <div class="hint num">savdo ${som(k.savdo)} · to'lov ${som(k.tolov)}</div></div>
+        <div class="qarz num ${rang(k.qarz)}">${som(k.qarz)}</div><div class="chev">›</div>
+      </div>`).join('') : '<div class="empty">Topilmadi</div>'}</div>`;
+  const inp = document.getElementById('q');
+  inp.oninput = () => { S.qidiruv = inp.value; const p = inp.selectionStart; royxat(); const n = document.getElementById('q'); n.focus(); n.setSelectionRange(p, p); };
+  app.querySelectorAll('.klient').forEach(el => el.onclick = () => ochish(el.dataset.k, null));
+}
+
+async function ochish(klient, ym) {
+  app.innerHTML = '<div class="msg"><div class="spin"></div>Hisobot tayyorlanmoqda…</div>';
+  try {
+    const j = await api('hisobot', { klient, ym });
+    S.h = j.h; korsat(); window.scrollTo(0, 0);
+  } catch (e) { xato(e); }
+}
+
+function hisobotKorsat() {
+  const h = S.h;
+  const z = h.zakazlar.map((z, i) => `
+    <details class="card zakaz" ${h.zakazlar.length === 1 ? 'open' : ''} style="margin-top:8px">
+      <summary class="row">
+        <div class="grow"><div><b>${esc(z.sana.slice(0, 5))}</b> ${z.zakaz ? `<span class="badge">${esc(z.zakaz)}</span>` : ''}</div>
+          <div class="hint num">${z.qator.length} xil · ${som(z.kb)} kb</div></div>
+        <div class="num"><b>${som(z.jami)}</b></div><div class="tog">›</div>
+      </summary>
+      <div class="items">${z.qator.map(q => `
+        <div class="item"><div>${esc(q.nom)}</div><div></div>
+          <div class="calc num">${som(q.soni)} × ${som(q.narx)}</div><div class="s num">${som(q.summa)}</div></div>`).join('')}
+      </div>
+    </details>`).join('');
+  const t = h.tolovlar.map(p => `
+    <div class="row"><div class="grow"><div>${esc(p.sana.slice(0, 5))} · ${esc(p.usul)}</div>
+      ${p.izoh ? `<div class="hint ell">${esc(p.izoh)}</div>` : ''}</div>
+      <div class="num green"><b>${som(p.summa)}</b></div></div>`).join('');
+  app.innerHTML = `
+    <div class="title"><div class="avatar">${harf(h.klient)}</div><div class="name grow ell">${esc(h.klient)}</div></div>
+    <div class="months">
+      <button id="old">‹ Oldingi</button><span class="cur">${esc(h.oy)}</span>
+      <button id="key" ${h.keyingi ? '' : 'disabled'}>Keyingi ›</button>
+    </div>
+    <h2>Xulosa</h2>
+    <div class="card sum">
+      <div class="row"><div class="grow">Oy boshiga qarz</div><div class="num">${som(h.boshQarz)}</div></div>
+      <div class="row"><div class="grow">+ Olgan tovar <span class="hint">· ${som(h.kbJami)} kb</span></div><div class="num">${som(h.savdoJami)}</div></div>
+      <div class="row"><div class="grow">− To'lagan</div><div class="num green">${som(h.tolovJami)}</div></div>
+      <div class="row total"><div class="grow">${h.joriy ? 'Qolgan qarz' : 'Oy oxiriga qarz'}</div><div class="num ${rang(h.qoldi)}">${som(h.qoldi)}</div></div>
+    </div>
+    <h2>Olgan tovarlari · ${h.zakazlar.length} ta zakaz</h2>
+    ${z || '<div class="card empty">Bu oyda tovar olmagan</div>'}
+    <h2>To'lovlari · ${h.tolovlar.length} ta</h2>
+    <div class="card">${t || '<div class="empty">Bu oyda to\'lov qilmagan</div>'}</div>
+    <button class="btn" id="pay">💰 ${esc(h.klient)} uchun to'lov kiritish</button>`;
+  document.getElementById('old').onclick = () => ochish(h.klient, h.oldingi);
+  if (h.keyingi) document.getElementById('key').onclick = () => ochish(h.klient, h.keyingi);
+  document.getElementById('pay').onclick = () => { S.forma = { klient: h.klient }; tabga('tolov'); };
+}
+
+if (tg) tg.BackButton.onClick(() => { S.h = null; korsat(); });
+
+/* ---------- To'lov formasi ---------- */
+const isoBugun = () => { const [d, m, y] = S.bugun.split('.'); return `${y}-${m}-${d}`; };
+
+function forma() {
+  const f = S.forma;
+  if (!f.sana) f.sana = isoBugun();
+  if (!f.usul) f.usul = S.usullar[0];
+  const k = S.klientlar.find(x => x.klient === f.klient);
+  app.innerHTML = `
+    <div class="title"><div class="name">To'lov kiritish</div></div>
+    <label class="f">Klient</label>
+    <input id="kl" list="kll" placeholder="Klient nomi" value="${esc(f.klient || '')}" autocomplete="off">
+    <datalist id="kll">${S.klientlar.map(k => `<option value="${esc(k.klient)}">`).join('')}</datalist>
+    <div class="hint sugg" id="klh">${k ? `Hozirgi qarz: <b class="num ${rang(k.qarz)}">${som(k.qarz)}</b>` : (f.klient ? '🆕 Yangi klient' : '')}</div>
+    <label class="f">Summa (so'm)</label>
+    <input id="sm" inputmode="numeric" placeholder="0" value="${f.summa ? som(f.summa) : ''}">
+    <label class="f">Usul</label>
+    <div class="seg">${S.usullar.map(u => `<button data-u="${esc(u)}" class="${u === f.usul ? 'on' : ''}">${esc(u)}</button>`).join('')}</div>
+    <label class="f">Sana</label>
+    <input id="sn" type="date" value="${f.sana}" max="${isoBugun()}">
+    <label class="f">Izoh (ixtiyoriy)</label>
+    <input id="iz" maxlength="200" placeholder="Masalan: Abdulloh orqali" value="${esc(f.izoh || '')}">
+    <div class="card preview" id="pv"></div>
+    <button class="btn" id="ok">✅ Yozish</button>`;
+  const kl = document.getElementById('kl'), sm = document.getElementById('sm');
+  const pv = () => {
+    const k = S.klientlar.find(x => x.klient === f.klient);
+    document.getElementById('klh').innerHTML = k ? `Hozirgi qarz: <b class="num ${rang(k.qarz)}">${som(k.qarz)}</b>` : (f.klient ? '🆕 Yangi klient' : '');
+    const box = document.getElementById('pv');
+    if (!k || !f.summa) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    box.innerHTML = `<div class="row"><div class="grow">Qarz hozir</div><div class="num">${som(k.qarz)}</div></div>
+      <div class="row"><div class="grow">To'lovdan keyin</div><div class="num ${rang(k.qarz - f.summa)}"><b>${som(k.qarz - f.summa)}</b></div></div>`;
+  };
+  kl.oninput = () => { f.klient = kl.value.trim(); pv(); };
+  sm.oninput = () => {
+    const raqam = sm.value.replace(/\D/g, '');
+    f.summa = Number(raqam) || 0;
+    sm.value = raqam ? som(f.summa) : '';
+    pv();
+  };
+  app.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+    f.usul = b.dataset.u; app.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+  });
+  document.getElementById('sn').onchange = e => f.sana = e.target.value;
+  document.getElementById('iz').oninput = e => f.izoh = e.target.value;
+  document.getElementById('ok').onclick = yuborish;
+  pv();
+}
+
+function yuborish() {
+  const f = S.forma;
+  if (!f.klient) return toast('Klientni tanlang');
+  if (!f.summa) return toast('Summani yozing');
+  if (!f.sana) return toast('Sanani tanlang');
+  const [y, m, d] = f.sana.split('-');
+  const sana = `${d}.${m}.${y}`;
+  const yangi = !S.klientlar.some(x => x.klient === f.klient);
+  const savol = `${f.klient}${yangi ? ' (yangi klient)' : ''}\n${som(f.summa)} so'm · ${f.usul}\n${sana}${f.izoh ? '\n' + f.izoh : ''}\n\nYozilsinmi?`;
+  const bajar = async ok => {
+    if (!ok) return;
+    const btn = document.getElementById('ok');
+    btn.disabled = true; btn.textContent = 'Yozilmoqda…';
+    try {
+      const j = await api('tolov', { klient: f.klient, summa: f.summa, usul: f.usul, sana, izoh: f.izoh || '' });
+      if (tg) tg.HapticFeedback.notificationOccurred('success');
+      toast(`✅ Yozildi (${j.row}-qator). Qolgan qarz: ${som(j.qarz)}`);
+      const yangiK = f.klient;
+      S.forma = {};
+      const r = await api('klientlar');
+      Object.assign(S, { klientlar: r.klientlar, jami: r.jami });
+      S.tab = 'qarz';
+      document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === 'qarz'));
+      ochish(yangiK, null);
+    } catch (e) {
+      if (tg) tg.HapticFeedback.notificationOccurred('error');
+      toast('⚠️ ' + e.message);
+      btn.disabled = false; btn.textContent = '✅ Yozish';
+    }
+  };
+  if (tg && tg.showConfirm) tg.showConfirm(savol, bajar); else bajar(confirm(savol));
+}
+
+boshla();
+</script>
+</body>
+</html>
