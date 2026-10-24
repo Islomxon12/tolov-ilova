@@ -51,7 +51,7 @@
   .klient:active { background: var(--line); }
   .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; flex: none;
     background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 700; }
-  .qarz { font-weight: 600; text-align: right; }
+  .qarz { font-weight: 600; text-align: right; flex: none; }
   .chev { color: var(--hint); font-size: 18px; }
 
   /* Hisobot */
@@ -191,7 +191,7 @@ function royxat() {
       <div class="row klient" data-k="${esc(k.klient)}">
         <div class="avatar">${harf(k.klient)}</div>
         <div class="grow"><div class="ell">${esc(k.klient)}</div>
-          <div class="hint num">savdo ${som(k.savdo)} · to'lov ${som(k.tolov)}</div></div>
+          <div class="hint num ell">to'lov ${som(k.tolov)}</div></div>
         <div class="qarz num ${rang(k.qarz)}">${som(k.qarz)}</div><div class="chev">›</div>
       </div>`).join('') : '<div class="empty">Topilmadi</div>'}</div>`;
   const inp = document.getElementById('q');
