@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Import ombor</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-secondary-bg-color, #f1f2f6);
+    --card: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #ffffff));
+    --text: var(--tg-theme-text-color, #15171c);
+    --hint: var(--tg-theme-hint-color, #8a8f98);
+    --accent: var(--tg-theme-button-color, #2f80ed);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+    --head: var(--tg-theme-section-header-text-color, var(--tg-theme-hint-color, #6d7380));
+    --line: color-mix(in srgb, var(--hint) 22%, transparent);
+    --red: #e5484d;
+    --green: #2b9a66;
+    --amber: #d98a00;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 12px 12px calc(84px + env(safe-area-inset-bottom)); }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .hint { color: var(--hint); font-size: 13px; }
+  .red { color: var(--red); } .green { color: var(--green); } .amber { color: var(--amber); }
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--head); margin: 18px 4px 8px; display: flex; justify-content: space-between; }
+  .card { background: var(--card); border-radius: var(--radius); overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .grow { flex: 1; min-width: 0; }
+  .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title { font-size: 20px; font-weight: 700; margin: 2px 4px 4px; }
+
+  input { width: 100%; font: inherit; color: var(--text); background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; outline: none; }
+  input:focus { border-color: var(--accent); }
+  label.f { display: block; margin: 14px 4px 6px; font-size: 13px; color: var(--head); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .seg { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+  .seg button { border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit;
+    padding: 10px 8px; border-radius: 12px; }
+  .seg button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: var(--accent); font-weight: 600; }
+  .sugg { margin: 6px 4px 0; }
+
+  /* Mahsulot qidiruv natijalari */
+  .res { margin-top: 6px; }
+  .res .row { cursor: pointer; }
+  .res .row:active { background: var(--line); }
+  .plus { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none;
+    background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-weight: 700; font-size: 18px; }
+  .qol { font-size: 13px; flex: none; text-align: right; }
+
+  /* Tanlangan mahsulotlar */
+  .item .nm { font-weight: 500; }
+  .item .soni { width: 86px; flex: none; text-align: right; padding: 9px 10px; font-weight: 600; }
+  .item .x { border: 0; background: none; color: var(--hint); font-size: 20px; padding: 0 2px; flex: none; }
+  .empty { padding: 16px; text-align: center; color: var(--hint); }
+  .total { font-weight: 700; background: color-mix(in srgb, var(--accent) 7%, transparent); }
+
+  .btn { width: 100%; margin-top: 16px; border: 0; border-radius: 12px; padding: 14px; font: inherit; font-weight: 600;
+    background: var(--accent); color: var(--accent-text); }
+  .btn.sec { background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: var(--accent); }
+  .btn:disabled { opacity: .5; }
+
+  nav { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr;
+    background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  nav button { border: 0; background: none; font: inherit; font-size: 12px; color: var(--hint); padding: 8px 0 10px; }
+  nav button .ic { display: block; font-size: 22px; line-height: 1.2; }
+  nav button.on { color: var(--accent); font-weight: 600; }
+
+  .msg { padding: 28px 16px; text-align: center; color: var(--hint); }
+  .spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: sp .8s linear infinite; margin: 0 auto 10px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: var(--text); color: var(--card); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: 90%;
+    opacity: 0; transition: opacity .2s; pointer-events: none; text-align: center; }
+  .toast.on { opacity: .95; }
+</style>
+</head>
+<body>
+<div id="app"><div class="msg"><div class="spin"></div>Yuklanmoqda…</div></div>
+<nav id="nav" hidden>
+  <button data-tab="kirim" class="on"><span class="ic">📥</span>Kirim</button>
+  <button data-tab="sotuv"><span class="ic">📤</span>Sotuv</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+// Apps Script web app (@yassim_skladbot) — Telegram imzosini tekshirib, "Import Ombor 2026" jadvaliga yozadi
+const API = 'https://script.google.com/macros/s/AKfycbxswkTlJhmNIkxCzGnjvr8KL7Uw0_-D58bsRJkjNHkuy1Qp2P_OWbbrJloT_wNOSCSw/exec';
+const tg = window.Telegram && Telegram.WebApp;
+const app = document.getElementById('app');
+const S = { tab: 'kirim', mahsulotlar: [], klientlar: [], menejerlar: [], bugun: '',
+  f: { kirim: { qator: [] }, sotuv: { qator: [] } } };
+
+if (tg) { tg.ready(); tg.expand(); }
+
+const fmt = n => (n < 0 ? '−' : '') + Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = s => String(s).toLowerCase().replace(/[ʻʼ’'`"]/g, '').replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim();
+const qolRang = n => n < 0 ? 'red' : n <= 20 ? 'amber' : 'hint';
+
+function toast(t) {
+  const el = document.getElementById('toast');
+  el.textContent = t; el.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 3000);
+}
+
+async function api(act, data) {
+  // text/plain — CORS preflight bo'lmasin (Apps Script OPTIONS ga javob bermaydi)
+  const r = await fetch(API, { method: 'POST', body: JSON.stringify({ initData: tg ? tg.initData : '', act, ...data }) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.xato || 'Xato');
+  return j;
+}
+
+async function yukla() {
+  const j = await api('royxat');
+  Object.assign(S, { mahsulotlar: j.mahsulotlar, klientlar: j.klientlar, menejerlar: j.menejerlar, bugun: j.bugun });
+}
+
+async function boshla() {
+  if (!tg || !tg.initData) {
+    app.innerHTML = '<div class="msg">Bu ilova Telegram ichida, @yassim_skladbot menyusidagi <b>Ilova</b> tugmasi orqali ochiladi.</div>';
+    return;
+  }
+  app.innerHTML = '<div class="msg"><div class="spin"></div>Yuklanmoqda…</div>';
+  try {
+    await yukla();
+    document.getElementById('nav').hidden = false;
+    korsat();
+  } catch (e) {
+    app.innerHTML = `<div class="msg">⚠️ ${esc(e.message || e)}<br><br><button class="btn sec" onclick="boshla()">Qayta urinish</button></div>`;
+  }
+}
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  S.tab = b.dataset.tab;
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  korsat(); window.scrollTo(0, 0);
+});
+
+const isoBugun = () => { const [d, m, y] = S.bugun.split('.'); return `${y}-${m}-${d}`; };
+const qoldiqi = nom => { const p = S.mahsulotlar.find(x => x.nom === nom); return p ? p.qoldiq : 0; };
+
+function korsat() {
+  const kirim = S.tab === 'kirim', f = S.f[S.tab];
+  if (!f.sana) f.sana = isoBugun();
+  app.innerHTML = `
+    <div class="title">${kirim ? '📥 Kirim' : '📤 Sotuv'}</div>
+    <div class="two">
+      <div><label class="f">Sana</label><input id="sn" type="date" value="${f.sana}" max="${isoBugun()}"></div>
+      ${kirim
+        ? `<div><label class="f">Qayerdan</label><input id="yt" maxlength="60" placeholder="Xitoy" value="${esc(f.yetk || '')}"></div>`
+        : `<div><label class="f">Klient</label><input id="kl" list="kll" placeholder="Klient nomi" value="${esc(f.klient || '')}" autocomplete="off"></div>`}
+    </div>
+    ${kirim ? '' : `<datalist id="kll">${S.klientlar.map(k => `<option value="${esc(k.klient)}">`).join('')}</datalist>
+      <div class="hint sugg" id="klh"></div><div id="mn"></div>`}
+    <label class="f">Mahsulot qo'shish</label>
+    <input id="q" type="search" placeholder="🔎 Nomini yozing" autocomplete="off">
+    <div class="card res" id="res"></div>
+    <h2><span>Mahsulotlar</span><span id="cnt"></span></h2>
+    <div class="card" id="items"></div>
+    <button class="btn" id="ok">✅ Yozish</button>`;
+
+  document.getElementById('sn').onchange = e => f.sana = e.target.value;
+  if (kirim) document.getElementById('yt').oninput = e => f.yetk = e.target.value;
+  else { const kl = document.getElementById('kl'); kl.oninput = () => { f.klient = kl.value.trim(); klientHint(); }; klientHint(); }
+  const q = document.getElementById('q');
+  q.oninput = () => natijalar(q.value);
+  document.getElementById('ok').onclick = yuborish;
+  natijalar('');
+  qatorlar();
+}
+
+function klientHint() {
+  const f = S.f.sotuv, k = S.klientlar.find(x => x.klient === f.klient);
+  const h = document.getElementById('klh'), mn = document.getElementById('mn');
+  if (!f.klient) { h.textContent = ''; mn.innerHTML = ''; return; }
+  if (k) { h.innerHTML = `Menejer: <b>${esc(k.menejer)}</b>`; mn.innerHTML = ''; f.menejer = ''; return; }
+  h.innerHTML = '🆕 Yangi klient — menejerini tanlang:';
+  mn.innerHTML = `<div class="seg">${S.menejerlar.map(m => `<button data-m="${esc(m)}" class="${m === f.menejer ? 'on' : ''}">${esc(m)}</button>`).join('')}</div>`;
+  mn.querySelectorAll('button').forEach(b => b.onclick = () => { f.menejer = b.dataset.m; klientHint(); });
+}
+
+function natijalar(matn) {
+  const f = S.f[S.tab], box = document.getElementById('res'), n = norm(matn);
+  const tanlangan = new Set(f.qator.map(r => r.nom));
+  if (!n) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  const words = n.split(' ');
+  const mos = S.mahsulotlar.filter(p => !tanlangan.has(p.nom) && words.every(w => norm(p.nom).includes(w))).slice(0, 8);
+  const aniq = S.mahsulotlar.some(p => norm(p.nom) === n);
+  let html = mos.map(p => `
+    <div class="row" data-n="${esc(p.nom)}"><div class="plus">+</div>
+      <div class="grow ell">${esc(p.nom)}</div><div class="qol num ${qolRang(p.qoldiq)}">${fmt(p.qoldiq)} kb</div></div>`).join('');
+  if (S.tab === 'kirim' && !aniq) html += `
+    <div class="row" data-yangi="${esc(matn.trim())}"><div class="plus">🆕</div>
+      <div class="grow ell">«${esc(matn.trim())}» — yangi mahsulot</div></div>`;
+  if (!html) html = '<div class="empty">Topilmadi — sotuvda faqat omborda bor mahsulot</div>';
+  box.innerHTML = html; box.style.display = '';
+  box.querySelectorAll('.row').forEach(el => el.onclick = () => qosh(el.dataset.n || el.dataset.yangi, !!el.dataset.yangi));
+}
+
+function qosh(nom, yangi) {
+  const f = S.f[S.tab];
+  f.qator.push({ nom, soni: 0, yangi });
+  const q = document.getElementById('q'); q.value = ''; natijalar('');
+  qatorlar();
+  const inp = document.querySelectorAll('#items .soni'); inp[inp.length - 1].focus();
+}
+
+function qatorlar() {
+  const f = S.f[S.tab], kirim = S.tab === 'kirim', box = document.getElementById('items');
+  if (!f.qator.length) { box.innerHTML = '<div class="empty">Hali mahsulot qo\'shilmagan</div>'; document.getElementById('cnt').textContent = ''; return; }
+  box.innerHTML = f.qator.map((r, i) => {
+    const bor = qoldiqi(r.nom), keyin = kirim ? bor + r.soni : bor - r.soni;
+    return `<div class="row item">
+      <div class="grow"><div class="nm ell">${r.yangi ? '🆕 ' : ''}${esc(r.nom)}</div>
+        <div class="hint num" id="h${i}">qoldiq ${fmt(bor)} → <b class="${qolRang(keyin)}">${fmt(keyin)}</b></div></div>
+      <input class="soni num" data-i="${i}" inputmode="numeric" placeholder="soni" value="${r.soni || ''}">
+      <button class="x" data-i="${i}" aria-label="Olib tashlash">✕</button></div>`;
+  }).join('') + `<div class="row total"><div class="grow">Jami</div><div class="num" id="jm"></div></div>`;
+  box.querySelectorAll('.soni').forEach(inp => inp.oninput = () => {
+    const i = +inp.dataset.i, raqam = inp.value.replace(/\D/g, '');
+    inp.value = raqam; f.qator[i].soni = Number(raqam) || 0;
+    const bor = qoldiqi(f.qator[i].nom), keyin = kirim ? bor + f.qator[i].soni : bor - f.qator[i].soni;
+    document.getElementById('h' + i).innerHTML = `qoldiq ${fmt(bor)} → <b class="${qolRang(keyin)}">${fmt(keyin)}</b>`;
+    jami();
+  });
+  box.querySelectorAll('.x').forEach(b => b.onclick = () => { f.qator.splice(+b.dataset.i, 1); qatorlar(); });
+  jami();
+}
+
+function jami() {
+  const f = S.f[S.tab], s = f.qator.reduce((a, r) => a + r.soni, 0);
+  document.getElementById('jm').textContent = fmt(s) + ' kb';
+  document.getElementById('cnt').textContent = f.qator.length + ' xil';
+}
+
+function yuborish() {
+  const tur = S.tab, f = S.f[tur];
+  if (!f.sana) return toast('Sanani tanlang');
+  if (tur === 'sotuv') {
+    if (!f.klient) return toast('Klientni yozing');
+    if (!S.klientlar.some(x => x.klient === f.klient) && !f.menejer) return toast('Yangi klient — menejerini tanlang');
+  }
+  if (!f.qator.length) return toast('Mahsulot qo\'shing');
+  const bosh = f.qator.find(r => !r.soni);
+  if (bosh) return toast(`${bosh.nom} — sonini yozing`);
+  const minus = tur === 'sotuv' ? f.qator.filter(r => qoldiqi(r.nom) - r.soni < 0) : [];
+  const [y, m, d] = f.sana.split('-'), sana = `${d}.${m}.${y}`;
+  const s = f.qator.reduce((a, r) => a + r.soni, 0);
+  const savol = `${tur === 'kirim' ? 'KIRIM' + (f.yetk ? ' · ' + f.yetk : '') : 'SOTUV · ' + f.klient} · ${sana}\n` +
+    `${f.qator.length} xil, jami ${fmt(s)} kb` +
+    (minus.length ? `\n\n⚠️ Omborda yetmaydi: ${minus.map(r => r.nom).join(', ')}` : '') + '\n\nYozilsinmi?';
+  const bajar = async ok => {
+    if (!ok) return;
+    const btn = document.getElementById('ok');
+    btn.disabled = true; btn.textContent = 'Yozilmoqda…';
+    try {
+      const j = await api(tur, { sana, yetk: f.yetk || '', klient: f.klient || '', menejer: f.menejer || '',
+        qatorlar: f.qator.map(r => ({ nom: r.nom, soni: r.soni })) });
+      if (tg) tg.HapticFeedback.notificationOccurred('success');
+      S.f[tur] = { qator: [] };
+      await yukla();
+      korsat();
+      toast(`✅ Yozildi: ${j.sheet} ${j.from}–${j.to} qator, jami ${fmt(j.jami)} kb`);
+    } catch (e) {
+      if (tg) tg.HapticFeedback.notificationOccurred('error');
+      toast('⚠️ ' + e.message);
+      btn.disabled = false; btn.textContent = '✅ Yozish';
+    }
+  };
+  // Telegram popup matni 256 belgidan oshmasin
+  const qisqa = savol.length > 250 ? savol.slice(0, 235) + '…\n\nYozilsinmi?' : savol;
+  if (tg && tg.showConfirm) tg.showConfirm(qisqa, bajar); else bajar(confirm(savol));
+}
+
+boshla();
+</script>
+</body>
+</html>
