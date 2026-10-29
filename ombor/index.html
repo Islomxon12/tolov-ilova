@@ -67,7 +67,16 @@
   .btn.sec { background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: var(--accent); }
   .btn:disabled { opacity: .5; }
 
-  nav { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr;
+  /* Qoldiq */
+  .hero { padding: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+  .hero .big { font-size: 22px; font-weight: 700; }
+  .chips { display: flex; gap: 8px; margin: 12px 0 0; }
+  .chips button { border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 14px;
+    padding: 7px 14px; border-radius: 20px; }
+  .chips button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: var(--accent); font-weight: 600; }
+  .ql { font-weight: 700; flex: none; }
+
+  nav { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 1fr;
     background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
   nav button { border: 0; background: none; font: inherit; font-size: 12px; color: var(--hint); padding: 8px 0 10px; }
   nav button .ic { display: block; font-size: 22px; line-height: 1.2; }
@@ -88,6 +97,7 @@
 <nav id="nav" hidden>
   <button data-tab="kirim" class="on"><span class="ic">📥</span>Kirim</button>
   <button data-tab="sotuv"><span class="ic">📤</span>Sotuv</button>
+  <button data-tab="qoldiq"><span class="ic">📦</span>Qoldiq</button>
 </nav>
 <div class="toast" id="toast"></div>
 
@@ -144,12 +154,52 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   S.tab = b.dataset.tab;
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
   korsat(); window.scrollTo(0, 0);
+  if (S.tab === 'qoldiq') yangila();
 });
+
+/* ---------- Qoldiq ---------- */
+S.qf = 'bor'; S.qq = '';
+
+async function yangila() {
+  // Qoldiq oynasi ochilganda jadvaldan yangi raqamlar olinadi
+  try { await yukla(); if (S.tab === 'qoldiq') qoldiqKorsat(); } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function qoldiqKorsat() {
+  const all = S.mahsulotlar, n = norm(S.qq), words = n ? n.split(' ') : [];
+  const bor = all.filter(p => p.qoldiq > 0), kam = all.filter(p => p.qoldiq <= 20 && (p.qoldiq < 0 || p.qoldiq > 0));
+  const jami = bor.reduce((a, p) => a + p.qoldiq, 0);
+  let list = S.qf === 'bor' ? bor : S.qf === 'kam' ? kam : all;
+  list = list.filter(p => words.every(w => norm(p.nom).includes(w)));
+  app.innerHTML = `
+    <div class="title">📦 Qoldiq</div>
+    <div class="card hero">
+      <div><div class="big num">${fmt(jami)}</div><div class="hint">jami kb</div></div>
+      <div><div class="big num">${bor.length}</div><div class="hint">xil bor</div></div>
+      <div><div class="big num amber">${kam.length}</div><div class="hint">kam / minus</div></div>
+    </div>
+    <div class="chips">
+      <button data-f="bor" class="${S.qf === 'bor' ? 'on' : ''}">Bor</button>
+      <button data-f="kam" class="${S.qf === 'kam' ? 'on' : ''}">Kam / minus</button>
+      <button data-f="all" class="${S.qf === 'all' ? 'on' : ''}">Hammasi</button>
+    </div>
+    <div style="margin-top:10px"><input id="qq" type="search" placeholder="🔎 Mahsulot qidirish" value="${esc(S.qq)}" autocomplete="off"></div>
+    <h2><span>Mahsulotlar</span><span>${list.length} ta</span></h2>
+    <div class="card">${list.length ? list.map(p => `
+      <div class="row"><div class="grow ell">${p.qoldiq < 0 ? '🔴 ' : p.qoldiq > 0 && p.qoldiq <= 20 ? '🟡 ' : ''}${esc(p.nom)}</div>
+        <div class="ql num ${p.qoldiq < 0 ? 'red' : p.qoldiq <= 20 ? 'amber' : ''}">${fmt(p.qoldiq)} <span class="hint">kb</span></div></div>`).join('')
+      : '<div class="empty">Topilmadi</div>'}</div>
+    <div class="hint" style="margin:10px 4px">🟡 20 kb va undan kam · 🔴 minus · ${esc(S.bugun)} holatiga</div>`;
+  app.querySelectorAll('.chips button').forEach(b => b.onclick = () => { S.qf = b.dataset.f; qoldiqKorsat(); });
+  const inp = document.getElementById('qq');
+  inp.oninput = () => { S.qq = inp.value; const p = inp.selectionStart; qoldiqKorsat(); const x = document.getElementById('qq'); x.focus(); x.setSelectionRange(p, p); };
+}
 
 const isoBugun = () => { const [d, m, y] = S.bugun.split('.'); return `${y}-${m}-${d}`; };
 const qoldiqi = nom => { const p = S.mahsulotlar.find(x => x.nom === nom); return p ? p.qoldiq : 0; };
 
 function korsat() {
+  if (S.tab === 'qoldiq') return qoldiqKorsat();
   const kirim = S.tab === 'kirim', f = S.f[S.tab];
   if (!f.sana) f.sana = isoBugun();
   app.innerHTML = `
