@@ -158,20 +158,23 @@ function korsat() {
       <div><label class="f">Sana</label><input id="sn" type="date" value="${f.sana}" max="${isoBugun()}"></div>
       ${kirim
         ? `<div><label class="f">Qayerdan</label><input id="yt" maxlength="60" placeholder="Xitoy" value="${esc(f.yetk || '')}"></div>`
-        : `<div><label class="f">Klient</label><input id="kl" list="kll" placeholder="Klient nomi" value="${esc(f.klient || '')}" autocomplete="off"></div>`}
+        : `<div><label class="f">Klient</label><input id="kl" placeholder="Nomini yozing" value="${esc(f.klient || '')}" autocomplete="off"></div>`}
     </div>
-    ${kirim ? '' : `<datalist id="kll">${S.klientlar.map(k => `<option value="${esc(k.klient)}">`).join('')}</datalist>
-      <div class="hint sugg" id="klh"></div><div id="mn"></div>`}
-    <label class="f">Mahsulot qo'shish</label>
-    <input id="q" type="search" placeholder="🔎 Nomini yozing" autocomplete="off">
-    <div class="card res" id="res"></div>
+    ${kirim ? '' : `<div class="card res" id="klr"></div><div class="hint sugg" id="klh"></div><div id="mn"></div>`}
+    ${kirim ? qidiruvHtml('Mahsulot qo\'shish') : ''}
     <h2><span>Mahsulotlar</span><span id="cnt"></span></h2>
     <div class="card" id="items"></div>
-    <button class="btn" id="ok">✅ Yozish</button>`;
+    <button class="btn" id="ok">✅ Yozish</button>
+    ${kirim ? '' : qidiruvHtml('Omborda bor mahsulotlar — bosib qo\'shing')}`;
 
   document.getElementById('sn').onchange = e => f.sana = e.target.value;
   if (kirim) document.getElementById('yt').oninput = e => f.yetk = e.target.value;
-  else { const kl = document.getElementById('kl'); kl.oninput = () => { f.klient = kl.value.trim(); klientHint(); }; klientHint(); }
+  else {
+    const kl = document.getElementById('kl');
+    kl.oninput = () => { f.klient = kl.value.trim(); klientTaklif(); klientHint(); };
+    kl.onblur = () => setTimeout(() => { document.getElementById('klr').style.display = 'none'; }, 150);
+    klientTaklif(true); klientHint();
+  }
   const q = document.getElementById('q');
   q.oninput = () => natijalar(q.value);
   document.getElementById('ok').onclick = yuborish;
@@ -179,30 +182,58 @@ function korsat() {
   qatorlar();
 }
 
+// Klient: ro'yxatdan tanlash yoki qo'lda yozish (yozilgan yangi nom yozuvda Klientlar ga qo'shiladi)
+const klientTop = nom => S.klientlar.find(x => norm(x.klient) === norm(nom));
+
+function klientTaklif(yashir) {
+  const f = S.f.sotuv, box = document.getElementById('klr'), n = norm(f.klient || '');
+  if (yashir || !n || klientTop(f.klient)) { box.style.display = 'none'; return; }
+  const words = n.split(' ');
+  const mos = S.klientlar.filter(k => words.every(w => norm(k.klient).includes(w))).slice(0, 6);
+  if (!mos.length) { box.style.display = 'none'; return; }
+  box.innerHTML = mos.map(k => `<div class="row" data-k="${esc(k.klient)}"><div class="grow ell">${esc(k.klient)}</div>
+    <div class="hint">${esc(k.menejer || '')}</div></div>`).join('');
+  box.style.display = '';
+  box.querySelectorAll('.row').forEach(el => el.onmousedown = el.onclick = e => {
+    e.preventDefault();
+    f.klient = el.dataset.k; document.getElementById('kl').value = f.klient;
+    box.style.display = 'none'; klientHint();
+  });
+}
+
+const qidiruvHtml = sarlavha => `<label class="f">${sarlavha}</label>
+  <input id="q" type="search" placeholder="🔎 Nomini yozing" autocomplete="off">
+  <div class="card res" id="res"></div>`;
+
 function klientHint() {
-  const f = S.f.sotuv, k = S.klientlar.find(x => x.klient === f.klient);
+  const f = S.f.sotuv, k = klientTop(f.klient || '');
   const h = document.getElementById('klh'), mn = document.getElementById('mn');
   if (!f.klient) { h.textContent = ''; mn.innerHTML = ''; return; }
-  if (k) { h.innerHTML = `Menejer: <b>${esc(k.menejer)}</b>`; mn.innerHTML = ''; f.menejer = ''; return; }
-  h.innerHTML = '🆕 Yangi klient — menejerini tanlang:';
+  if (k) { h.innerHTML = `Menejer: <b>${esc(k.menejer || '—')}</b>`; mn.innerHTML = ''; f.menejer = ''; return; }
+  h.innerHTML = '🆕 Yangi klient — yozilganda ro\'yxatga qo\'shiladi. Menejer (ixtiyoriy):';
   mn.innerHTML = `<div class="seg">${S.menejerlar.map(m => `<button data-m="${esc(m)}" class="${m === f.menejer ? 'on' : ''}">${esc(m)}</button>`).join('')}</div>`;
-  mn.querySelectorAll('button').forEach(b => b.onclick = () => { f.menejer = b.dataset.m; klientHint(); });
+  mn.querySelectorAll('button').forEach(b => b.onclick = () => { f.menejer = f.menejer === b.dataset.m ? '' : b.dataset.m; klientHint(); });
 }
 
 function natijalar(matn) {
   const f = S.f[S.tab], box = document.getElementById('res'), n = norm(matn);
   const tanlangan = new Set(f.qator.map(r => r.nom));
-  if (!n) { box.innerHTML = ''; box.style.display = 'none'; return; }
-  const words = n.split(' ');
-  const mos = S.mahsulotlar.filter(p => !tanlangan.has(p.nom) && words.every(w => norm(p.nom).includes(w))).slice(0, 8);
+  const sotuv = S.tab === 'sotuv';
+  // Sotuvda qidiruv bo'sh bo'lsa — omborda bor (qoldiq > 0) hamma mahsulot ko'rinib turadi
+  if (!n && !sotuv) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  const words = n ? n.split(' ') : [];
+  let mos = S.mahsulotlar.filter(p => !tanlangan.has(p.nom) && words.every(w => norm(p.nom).includes(w)));
+  if (sotuv) mos = n ? mos.filter(p => p.qoldiq > 0).concat(mos.filter(p => p.qoldiq <= 0)).slice(0, 12)
+                     : mos.filter(p => p.qoldiq > 0);
+  else mos = mos.slice(0, 8);
   const aniq = S.mahsulotlar.some(p => norm(p.nom) === n);
   let html = mos.map(p => `
     <div class="row" data-n="${esc(p.nom)}"><div class="plus">+</div>
       <div class="grow ell">${esc(p.nom)}</div><div class="qol num ${qolRang(p.qoldiq)}">${fmt(p.qoldiq)} kb</div></div>`).join('');
-  if (S.tab === 'kirim' && !aniq) html += `
+  if (S.tab === 'kirim' && n && !aniq) html += `
     <div class="row" data-yangi="${esc(matn.trim())}"><div class="plus">🆕</div>
       <div class="grow ell">«${esc(matn.trim())}» — yangi mahsulot</div></div>`;
-  if (!html) html = '<div class="empty">Topilmadi — sotuvda faqat omborda bor mahsulot</div>';
+  if (!html) html = `<div class="empty">${n ? 'Topilmadi' : 'Omborda qoldig\'i bor mahsulot yo\'q'}</div>`;
   box.innerHTML = html; box.style.display = '';
   box.querySelectorAll('.row').forEach(el => el.onclick = () => qosh(el.dataset.n || el.dataset.yangi, !!el.dataset.yangi));
 }
@@ -248,7 +279,6 @@ function yuborish() {
   if (!f.sana) return toast('Sanani tanlang');
   if (tur === 'sotuv') {
     if (!f.klient) return toast('Klientni yozing');
-    if (!S.klientlar.some(x => x.klient === f.klient) && !f.menejer) return toast('Yangi klient — menejerini tanlang');
   }
   if (!f.qator.length) return toast('Mahsulot qo\'shing');
   const bosh = f.qator.find(r => !r.soni);
@@ -256,7 +286,8 @@ function yuborish() {
   const minus = tur === 'sotuv' ? f.qator.filter(r => qoldiqi(r.nom) - r.soni < 0) : [];
   const [y, m, d] = f.sana.split('-'), sana = `${d}.${m}.${y}`;
   const s = f.qator.reduce((a, r) => a + r.soni, 0);
-  const savol = `${tur === 'kirim' ? 'KIRIM' + (f.yetk ? ' · ' + f.yetk : '') : 'SOTUV · ' + f.klient} · ${sana}\n` +
+  const yangiK = tur === 'sotuv' && !klientTop(f.klient) ? ' (yangi klient)' : '';
+  const savol = `${tur === 'kirim' ? 'KIRIM' + (f.yetk ? ' · ' + f.yetk : '') : 'SOTUV · ' + f.klient + yangiK} · ${sana}\n` +
     `${f.qator.length} xil, jami ${fmt(s)} kb` +
     (minus.length ? `\n\n⚠️ Omborda yetmaydi: ${minus.map(r => r.nom).join(', ')}` : '') + '\n\nYozilsinmi?';
   const bajar = async ok => {
