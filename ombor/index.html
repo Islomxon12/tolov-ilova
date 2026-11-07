@@ -76,7 +76,28 @@
   .chips button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: var(--accent); font-weight: 600; }
   .ql { font-weight: 700; flex: none; }
 
-  nav { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 1fr;
+  [hidden] { display: none !important; }
+
+  /* Tarix */
+  .day { display: flex; justify-content: space-between; align-items: baseline; margin: 18px 4px 8px;
+    font-size: 13px; font-weight: 600; color: var(--head); }
+  .day .d { text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--text); }
+  .grp { font-weight: 600; background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .tline { cursor: pointer; }
+  .tline:active { background: var(--line); }
+  .tline .pen { color: var(--hint); font-size: 14px; flex: none; }
+  .card + .card { margin-top: 8px; }
+
+  /* Tuzatish oynasi */
+  .ov { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 20; display: flex; align-items: flex-end; }
+  .sheet { background: var(--bg); width: 100%; max-height: 92vh; overflow: auto; border-radius: 18px 18px 0 0;
+    padding: 16px 14px calc(18px + env(safe-area-inset-bottom)); }
+  .sheet .res { position: relative; }
+  .btn.red { background: color-mix(in srgb, var(--red) 12%, var(--card)); color: var(--red); }
+  .btn.ghost { background: none; color: var(--hint); margin-top: 6px; }
+  .warn { margin: 10px 4px 0; font-size: 13px; }
+
+  nav { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
     background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
   nav button { border: 0; background: none; font: inherit; font-size: 12px; color: var(--hint); padding: 8px 0 10px; }
   nav button .ic { display: block; font-size: 22px; line-height: 1.2; }
@@ -98,7 +119,9 @@
   <button data-tab="kirim" class="on"><span class="ic">📥</span>Kirim</button>
   <button data-tab="sotuv"><span class="ic">📤</span>Sotuv</button>
   <button data-tab="qoldiq"><span class="ic">📦</span>Qoldiq</button>
+  <button data-tab="tarix"><span class="ic">📋</span>Tarix</button>
 </nav>
+<div id="modal"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -155,7 +178,193 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
   korsat(); window.scrollTo(0, 0);
   if (S.tab === 'qoldiq') yangila();
+  if (S.tab === 'tarix') tarixYangila();
 });
+
+/* ---------- Tarix: kunma-kun kirim / sotuv, tuzatish va o'chirish ---------- */
+S.t = { tur: 'kirim', davr: '30', q: '', rows: { kirim: null, sotuv: null } };
+const UZ_KUN = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+const sanaObj = s => { const [d, m, y] = String(s).split(/[.\/]/); return new Date(+y, +m - 1, +d); };
+const isoDan = s => { const [d, m, y] = String(s).split(/[.\/]/); return `${y}-${m}-${d}`; };
+const isoGa = iso => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}`; };
+
+async function tarixYangila() {
+  const tur = S.t.tur;
+  try {
+    const j = await api('tarix', { tur });
+    S.t.rows[tur] = j.qatorlar;
+    if (S.tab === 'tarix' && S.t.tur === tur) tarixKorsat();
+  } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function tarixKorsat() {
+  const t = S.t, kirim = t.tur === 'kirim', rows = t.rows[t.tur];
+  let body = '';
+  if (!rows) body = '<div class="msg"><div class="spin"></div>Yuklanmoqda…</div>';
+  else {
+    const bugun = sanaObj(S.bugun), chegara = t.davr === 'all' ? null : new Date(bugun.getTime() - (+t.davr - 1) * 86400000);
+    const words = norm(t.q) ? norm(t.q).split(' ') : [];
+    const list = rows
+      .filter(r => !chegara || sanaObj(r.sana) >= chegara)
+      .filter(r => words.every(w => norm(r.nom + ' ' + (r.yetk || '') + ' ' + (r.klient || '') + ' ' + (r.menejer || '')).includes(w)))
+      .sort((a, b) => sanaObj(b.sana) - sanaObj(a.sana) || b.row - a.row);
+    const jami = list.reduce((a, r) => a + r.soni, 0);
+    const kunlar = [];
+    list.forEach(r => {
+      let k = kunlar[kunlar.length - 1];
+      if (!k || k.sana !== r.sana) kunlar.push(k = { sana: r.sana, guruh: [], jami: 0 });
+      const key = kirim ? (r.yetk || '—') : r.klient + (r.menejer ? ' · ' + r.menejer : '');
+      let g = k.guruh.find(x => x.key === key);
+      if (!g) k.guruh.push(g = { key, qator: [], jami: 0 });
+      g.qator.push(r); g.jami += r.soni; k.jami += r.soni;
+    });
+    body = `
+      <div class="card hero">
+        <div><div class="big num">${fmt(jami)}</div><div class="hint">jami kb</div></div>
+        <div><div class="big num">${list.length}</div><div class="hint">yozuv</div></div>
+        <div><div class="big num">${kunlar.length}</div><div class="hint">kun</div></div>
+      </div>
+      ${kunlar.length ? kunlar.map(k => `
+        <div class="day"><span class="d">${UZ_KUN[sanaObj(k.sana).getDay()]}, ${esc(k.sana)}</span><span class="num">${fmt(k.jami)} kb</span></div>
+        ${k.guruh.map(g => `<div class="card">
+          <div class="row grp"><div class="grow ell">${kirim ? '📥' : '👤'} ${esc(g.key)}</div><div class="num">${fmt(g.jami)} kb</div></div>
+          ${g.qator.map(r => `<div class="row tline" data-r="${r.row}">
+            <div class="grow ell">${esc(r.nom)}</div><div class="ql num">${fmt(r.soni)}</div><div class="pen">✏️</div></div>`).join('')}
+        </div>`).join('')}`).join('')
+      : '<div class="card"><div class="empty">Bu davrda yozuv yo\'q</div></div>'}
+      <div class="hint" style="margin:12px 4px">✏️ Qatorni bosing — sonini, mahsulotini, sanasini tuzatish yoki o'chirish</div>`;
+  }
+  app.innerHTML = `
+    <div class="title">📋 Tarix</div>
+    <div class="seg" id="tt">
+      <button data-t="kirim" class="${kirim ? 'on' : ''}">📥 Kirim</button>
+      <button data-t="sotuv" class="${kirim ? '' : 'on'}">📤 Sotuv</button>
+    </div>
+    <div class="chips" id="td">
+      <button data-d="7" class="${t.davr === '7' ? 'on' : ''}">7 kun</button>
+      <button data-d="30" class="${t.davr === '30' ? 'on' : ''}">30 kun</button>
+      <button data-d="all" class="${t.davr === 'all' ? 'on' : ''}">Hammasi</button>
+    </div>
+    <div style="margin-top:10px"><input id="tq" type="search" placeholder="🔎 ${kirim ? 'Mahsulot yoki yetkazuvchi' : 'Mahsulot, klient yoki menejer'}" value="${esc(t.q)}" autocomplete="off"></div>
+    ${body}`;
+  app.querySelectorAll('#tt button').forEach(b => b.onclick = () => {
+    t.tur = b.dataset.t; tarixKorsat(); if (!t.rows[t.tur]) tarixYangila();
+  });
+  app.querySelectorAll('#td button').forEach(b => b.onclick = () => { t.davr = b.dataset.d; tarixKorsat(); });
+  const inp = document.getElementById('tq');
+  inp.oninput = () => { t.q = inp.value; const p = inp.selectionStart; tarixKorsat(); const x = document.getElementById('tq'); x.focus(); x.setSelectionRange(p, p); };
+  app.querySelectorAll('.tline').forEach(el => el.onclick = () => tahrir(+el.dataset.r));
+}
+
+function tahrir(row) {
+  const t = S.t, tur = t.tur, kirim = tur === 'kirim', r = t.rows[tur].find(x => x.row === row);
+  if (!r) return;
+  const st = { nom: r.nom, soni: r.soni, sana: isoDan(r.sana), yetk: r.yetk || '', klient: r.klient || '', menejer: r.menejer || '' };
+  const box = document.getElementById('modal');
+  const yetklar = [...new Set((t.rows.kirim || []).map(x => x.yetk).filter(Boolean))];
+  box.innerHTML = `<div class="ov" id="ov"><div class="sheet">
+    <div class="title">✏️ ${kirim ? 'Kirimni' : 'Sotuvni'} tuzatish</div>
+    <div class="hint" style="margin:0 4px">Jadval ${row}-qator · yozgan: ${esc(r.yozgan || '—')}</div>
+    <div class="two">
+      <div><label class="f">Sana</label><input id="esn" type="date" value="${st.sana}" max="${isoBugun()}"></div>
+      <div><label class="f">Soni</label><input id="esq" class="num" inputmode="numeric" value="${st.soni}"></div>
+    </div>
+    <label class="f">Mahsulot</label><input id="enm" value="${esc(st.nom)}" autocomplete="off">
+    <div class="card res" id="enr" hidden></div>
+    <label class="f">${kirim ? 'Qayerdan (yetkazuvchi)' : 'Klient'}</label><input id="ekl" value="${esc(kirim ? st.yetk : st.klient)}" autocomplete="off">
+    <div class="card res" id="ekr" hidden></div>
+    <div class="hint sugg" id="ekh"></div>
+    <div class="warn" id="ewr"></div>
+    <button class="btn" id="esave">💾 Saqlash</button>
+    <button class="btn red" id="edel">🗑 O'chirish</button>
+    <button class="btn ghost" id="eno">Bekor</button>
+  </div></div>`;
+  const $ = id => document.getElementById(id);
+  const yop = () => { box.innerHTML = ''; };
+  $('ov').onclick = e => { if (e.target.id === 'ov') yop(); };
+  $('eno').onclick = yop;
+
+  // Qoldiq qanday o'zgarishi (tuzatishdan keyin)
+  const ogoh = () => {
+    const q = (nom, delta) => qoldiqi(nom) + delta;
+    const ishora = kirim ? 1 : -1, s = [];
+    if (norm(st.nom) === norm(r.nom)) {
+      const keyin = q(r.nom, ishora * (st.soni - r.soni));
+      s.push(`${esc(r.nom)}: qoldiq ${fmt(qoldiqi(r.nom))} → <b class="${qolRang(keyin)}">${fmt(keyin)}</b>`);
+    } else {
+      const eskiK = q(r.nom, -ishora * r.soni), yangiK = q(st.nom, ishora * st.soni);
+      s.push(`${esc(r.nom)}: ${fmt(qoldiqi(r.nom))} → <b class="${qolRang(eskiK)}">${fmt(eskiK)}</b>`);
+      if (S.mahsulotlar.some(p => norm(p.nom) === norm(st.nom)))
+        s.push(`${esc(st.nom)}: ${fmt(qoldiqi(st.nom))} → <b class="${qolRang(yangiK)}">${fmt(yangiK)}</b>`);
+    }
+    $('ewr').innerHTML = s.join('<br>');
+  };
+  const klHint = () => {
+    if (kirim) return;
+    const k = klientTop(st.klient);
+    $('ekh').innerHTML = !st.klient ? '' : k ? `Menejer: <b>${esc(k.menejer || '—')}</b>`
+      : `🆕 Yangi klient — ro'yxatga qo'shiladi${st.menejer ? ` (menejer: ${esc(st.menejer)})` : ''}`;
+  };
+  const taklif = (inp, boxId, items, tanla) => {
+    const b = $(boxId), n = norm(inp.value), w = n ? n.split(' ') : [];
+    const mos = n ? items.filter(x => w.every(z => norm(x.t).includes(z)) && norm(x.t) !== n).slice(0, 7) : [];
+    if (!mos.length) { b.hidden = true; return; }
+    b.innerHTML = mos.map((x, i) => `<div class="row" data-i="${i}"><div class="grow ell">${esc(x.t)}</div><div class="hint">${esc(x.h || '')}</div></div>`).join('');
+    b.hidden = false;
+    b.querySelectorAll('.row').forEach(el => el.onmousedown = el.onclick = e => { e.preventDefault(); tanla(mos[+el.dataset.i].t); b.hidden = true; });
+  };
+
+  $('esn').onchange = e => st.sana = e.target.value;
+  $('esq').oninput = e => { e.target.value = e.target.value.replace(/\D/g, ''); st.soni = Number(e.target.value) || 0; ogoh(); };
+  const nm = $('enm');
+  nm.oninput = () => { st.nom = nm.value.trim(); ogoh();
+    taklif(nm, 'enr', S.mahsulotlar.map(p => ({ t: p.nom, h: fmt(p.qoldiq) + ' kb' })), v => { st.nom = nm.value = v; ogoh(); }); };
+  nm.onblur = () => setTimeout(() => $('enr') && ($('enr').hidden = true), 150);
+  const kl = $('ekl');
+  kl.oninput = () => {
+    if (kirim) { st.yetk = kl.value.trim(); taklif(kl, 'ekr', yetklar.map(x => ({ t: x })), v => { st.yetk = kl.value = v; }); }
+    else { st.klient = kl.value.trim(); klHint();
+      taklif(kl, 'ekr', S.klientlar.map(k => ({ t: k.klient, h: k.menejer })), v => { st.klient = kl.value = v; klHint(); }); }
+  };
+  kl.onblur = () => setTimeout(() => $('ekr') && ($('ekr').hidden = true), 150);
+  ogoh(); klHint();
+
+  const eskiMatn = `${r.sana} · ${r.nom} — ${fmt(r.soni)}` + (kirim ? (r.yetk ? ' · ' + r.yetk : '') : ' · ' + r.klient);
+  const sor = (matn, ish) => {
+    const q = matn.length > 250 ? matn.slice(0, 247) + '…' : matn;
+    if (tg && tg.showConfirm) tg.showConfirm(q, ok => ok && ish()); else if (confirm(matn)) ish();
+  };
+  const bajar = async (data, btn, yozuv) => {
+    btn.disabled = true; btn.textContent = 'Saqlanmoqda…';
+    try {
+      await api('tuzat', { tur, row, eski: { sana: r.sana, nom: r.nom, soni: r.soni }, ...data });
+      if (tg) tg.HapticFeedback.notificationOccurred('success');
+      yop();
+      await Promise.all([yukla(), tarixYangila()]);
+      toast(yozuv);
+    } catch (e) {
+      if (tg) tg.HapticFeedback.notificationOccurred('error');
+      toast('⚠️ ' + e.message); btn.disabled = false; btn.textContent = btn.dataset.t;
+    }
+  };
+  $('esave').dataset.t = '💾 Saqlash'; $('edel').dataset.t = '🗑 O\'chirish';
+  $('esave').onclick = () => {
+    if (!st.sana) return toast('Sanani tanlang');
+    if (!(st.soni > 0)) return toast('Sonini yozing');
+    const p = S.mahsulotlar.find(x => norm(x.nom) === norm(st.nom));
+    if (!p) return toast('Mahsulotni ro\'yxatdan tanlang');
+    if (!kirim && !st.klient) return toast('Klientni yozing');
+    st.nom = p.nom;
+    const sana = isoGa(st.sana);
+    const yangiMatn = `${sana} · ${st.nom} — ${fmt(st.soni)}` + (kirim ? (st.yetk ? ' · ' + st.yetk : '') : ' · ' + st.klient);
+    if (yangiMatn === eskiMatn && (kirim || norm(st.klient) === norm(r.klient))) return toast('Hech narsa o\'zgarmadi');
+    sor(`Eski: ${eskiMatn}\nYangi: ${yangiMatn}\n\nSaqlansinmi?`, () => bajar({
+      yangi: { sana, nom: st.nom, soni: st.soni, yetk: st.yetk, klient: st.klient, menejer: st.menejer }
+    }, $('esave'), '✅ Tuzatildi'));
+  };
+  $('edel').onclick = () => sor(`${eskiMatn}\n\nShu yozuv o'chirilsinmi? Qoldiq qayta hisoblanadi.`,
+    () => bajar({ ochir: true }, $('edel'), '🗑 O\'chirildi'));
+}
 
 /* ---------- Qoldiq ---------- */
 S.qf = 'bor'; S.qq = '';
@@ -200,6 +409,7 @@ const qoldiqi = nom => { const p = S.mahsulotlar.find(x => x.nom === nom); retur
 
 function korsat() {
   if (S.tab === 'qoldiq') return qoldiqKorsat();
+  if (S.tab === 'tarix') return tarixKorsat();
   const kirim = S.tab === 'kirim', f = S.f[S.tab];
   if (!f.sana) f.sana = isoBugun();
   app.innerHTML = `
